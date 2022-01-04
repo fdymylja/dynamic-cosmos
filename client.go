@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/server/grpc/reflection/v2alpha1"
+	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -17,6 +18,8 @@ type Client struct {
 	Codec         *Codec
 	ModuleQueries map[protoreflect.FullName]protoreflect.ServiceDescriptor
 	Messages      map[protoreflect.FullName]protoreflect.MessageType
+
+	tm *http.HTTP
 }
 
 func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, tmEndpoint string) (*Client, error) {
@@ -60,11 +63,14 @@ func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, 
 		Tx:            tx.Tx,
 	}
 
+	reg := NewRegistry(remote)
 	c := &Client{
 		App:           app,
-		Registry:      NewRegistry(remote),
+		Registry:      reg,
+		Codec:         NewCodec(reg),
 		ModuleQueries: map[protoreflect.FullName]protoreflect.ServiceDescriptor{},
 		Messages:      map[protoreflect.FullName]protoreflect.MessageType{},
+		tm:            nil,
 	}
 
 	err = c.prepare()
@@ -72,6 +78,12 @@ func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, 
 		return nil, err
 	}
 
+	tm, err := http.New(tmEndpoint, "/websocket")
+	if err != nil {
+		return nil, err
+	}
+
+	c.tm = tm
 	return c, nil
 }
 
@@ -101,4 +113,17 @@ func (c *Client) prepare() error {
 	}
 
 	return nil
+}
+
+func (c *Client) Query(ctx context.Context, method string, req, resp protoreflect.Message) (err error) {
+	protoBytes, err := c.Codec.marshal.Marshal(req.Interface())
+	if err != nil {
+		return err
+	}
+	tmResp, err := c.tm.ABCIQuery(ctx, method, protoBytes)
+	if err != nil {
+		return err
+	}
+
+	return c.Codec.unmarshal.Unmarshal(tmResp.Response.Value, resp.Interface())
 }

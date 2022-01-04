@@ -18,9 +18,21 @@ func NewCodec(registry *Registry) *Codec {
 			Deterministic: true,
 		},
 		unmarshal: proto.UnmarshalOptions{
-			Resolver: nil,
+			Resolver: registry,
 		},
-		jsonMarshal:   protojson.MarshalOptions{},
-		jsonUnmarshal: protojson.UnmarshalOptions{},
+		jsonMarshal: protojson.MarshalOptions{
+			Multiline:       false,
+			Indent:          "\t",
+			AllowPartial:    false,
+			UseProtoNames:   false,
+			UseEnumNumbers:  false,
+			EmitUnpopulated: false,
+			Resolver:        registry,
+		},
+		jsonUnmarshal: protojson.UnmarshalOptions{
+			AllowPartial:   false,
+			DiscardUnknown: false,
+			Resolver:       registry,
+		},
 	}
 }
