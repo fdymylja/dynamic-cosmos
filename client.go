@@ -14,6 +14,7 @@ import (
 type Client struct {
 	App           *v2alpha1.AppDescriptor
 	Registry      *Registry
+	Codec         *Codec
 	ModuleQueries map[protoreflect.FullName]protoreflect.ServiceDescriptor
 	Messages      map[protoreflect.FullName]protoreflect.MessageType
 }
