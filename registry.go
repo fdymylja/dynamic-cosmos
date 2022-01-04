@@ -1,12 +1,8 @@
 package dynamic
 
 import (
-	"context"
 	"errors"
-	"time"
 
-	"google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -26,8 +22,9 @@ var (
 )
 
 type RemoteRegistry interface {
-	ProtoFileByPath(ctx context.Context, path string) (*descriptorpb.FileDescriptorProto, error)
-	ProtoFileContainingSymbol(ctx context.Context, name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error)
+	ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error)
+	ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error)
+	Close() error
 }
 
 type Registry struct {
@@ -46,10 +43,7 @@ func (r Registry) FindFileByPath(s string) (protoreflect.FileDescriptor, error) 
 		return nil, err
 	}
 
-	// try fetch it from remote
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	dpb, err := r.remote.ProtoFileByPath(ctx, s)
+	dpb, err := r.remote.ProtoFileByPath(s)
 	if err != nil {
 		return nil, err
 	}
@@ -75,10 +69,7 @@ func (r Registry) FindDescriptorByName(name protoreflect.FullName) (protoreflect
 		return nil, err
 	}
 
-	// try fetch from remote
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	dpb, err := r.remote.ProtoFileContainingSymbol(ctx, name)
+	dpb, err := r.remote.ProtoFileContainingSymbol(name)
 	if err != nil {
 		return nil, err
 	}
@@ -95,74 +86,13 @@ func (r Registry) FindDescriptorByName(name protoreflect.FullName) (protoreflect
 	return r.prefFiles.FindDescriptorByName(name)
 }
 
-var _ RemoteRegistry = (*grpcReflectionRemote)(nil)
-
-// grpcReflectionRemote is a RemoteRegistry
-// which uses grpc reflection to resolve files.
-type grpcReflectionRemote struct {
-	rpb grpc_reflection_v1alpha.ServerReflectionClient
-}
-
-func (g grpcReflectionRemote) ProtoFileByPath(ctx context.Context, path string) (*descriptorpb.FileDescriptorProto, error) {
-	stream, err := g.rpb.ServerReflectionInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer stream.CloseSend()
-
-	err = stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
-		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_FileByFilename{
-			FileByFilename: path,
-		}})
-	if err != nil {
-		return nil, err
-	}
-
-	recv, err := stream.Recv()
-	if err != nil {
-		return nil, err
-	}
-
-	resp := recv.MessageResponse.(*grpc_reflection_v1alpha.ServerReflectionResponse_FileDescriptorResponse)
-	fdRawBytes := resp.FileDescriptorResponse.FileDescriptorProto[0]
-	fdPb := &descriptorpb.FileDescriptorProto{}
-	err = proto.Unmarshal(fdRawBytes, fdPb)
-	if err != nil {
-		return nil, err
-	}
-
-	return fdPb, nil
-}
-
-func (g grpcReflectionRemote) ProtoFileContainingSymbol(ctx context.Context, name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error) {
-	stream, err := g.rpb.ServerReflectionInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer stream.CloseSend()
-
-	err = stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
-		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_FileContainingSymbol{
-			FileContainingSymbol: string(name),
-		},
+func (r *Registry) Save() (*descriptorpb.FileDescriptorSet, error) {
+	set := &descriptorpb.FileDescriptorSet{File: make([]*descriptorpb.FileDescriptorProto, 0, r.prefFiles.NumFiles())}
+	var err error
+	r.prefFiles.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+		set.File = append(set.File, protodesc.ToFileDescriptorProto(fd))
+		return true
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	recv, err := stream.Recv()
-	if err != nil {
-		return nil, err
-	}
-
-	resp := recv.MessageResponse.(*grpc_reflection_v1alpha.ServerReflectionResponse_FileDescriptorResponse)
-	fdRawBytes := resp.FileDescriptorResponse.FileDescriptorProto[0]
-	fdPb := &descriptorpb.FileDescriptorProto{}
-	err = proto.Unmarshal(fdRawBytes, fdPb)
-	if err != nil {
-		return nil, err
-	}
-
-	return fdPb, nil
+	return set, err
 }

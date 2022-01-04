@@ -7,7 +7,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/server/grpc/reflection/v2alpha1"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
@@ -19,7 +18,7 @@ type Client struct {
 	Messages      map[protoreflect.FullName]protoreflect.MessageType
 }
 
-func NewClient(ctx context.Context, grpcEndpoint string, tmEndpoint string) (*Client, error) {
+func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, tmEndpoint string) (*Client, error) {
 	conn, err := grpc.DialContext(ctx, grpcEndpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -62,7 +61,7 @@ func NewClient(ctx context.Context, grpcEndpoint string, tmEndpoint string) (*Cl
 
 	c := &Client{
 		App:           app,
-		Registry:      NewRegistry(&grpcReflectionRemote{rpb: grpc_reflection_v1alpha.NewServerReflectionClient(conn)}),
+		Registry:      NewRegistry(remote),
 		ModuleQueries: map[protoreflect.FullName]protoreflect.ServiceDescriptor{},
 		Messages:      map[protoreflect.FullName]protoreflect.MessageType{},
 	}
