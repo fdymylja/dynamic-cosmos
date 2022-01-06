@@ -19,7 +19,8 @@ type Client struct {
 	ModuleQueries map[protoreflect.FullName]protoreflect.ServiceDescriptor
 	Messages      map[protoreflect.FullName]protoreflect.MessageType
 
-	tm *http.HTTP
+	tm   *http.HTTP
+	grpc grpc.ClientConnInterface
 }
 
 func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, tmEndpoint string) (*Client, error) {
@@ -84,6 +85,25 @@ func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, 
 	}
 
 	c.tm = tm
+
+	// now we recreate a new grpc with a custom codec that uses our proto marshaler and unmarshaler
+	// which enable us to resolve and handle message dynamically without having knowledge of those
+	err = conn.Close()
+	if err != nil {
+		return nil, err
+	}
+	conn, err = grpc.DialContext(
+		ctx, grpcEndpoint,
+		grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.ForceCodec(c.Codec.GRPCCodec()),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	c.grpc = conn
 	return c, nil
 }
 
@@ -116,14 +136,5 @@ func (c *Client) prepare() error {
 }
 
 func (c *Client) Query(ctx context.Context, method string, req, resp protoreflect.Message) (err error) {
-	protoBytes, err := c.Codec.marshal.Marshal(req.Interface())
-	if err != nil {
-		return err
-	}
-	tmResp, err := c.tm.ABCIQuery(ctx, method, protoBytes)
-	if err != nil {
-		return err
-	}
-
-	return c.Codec.unmarshal.Unmarshal(tmResp.Response.Value, resp.Interface())
+	return c.grpc.Invoke(ctx, method, req, resp)
 }
