@@ -3,18 +3,17 @@ package dynamic
 import (
 	"context"
 	"fmt"
-	"google.golang.org/protobuf/proto"
-	"strings"
-
-	"github.com/cosmos/cosmos-sdk/server/grpc/reflection/v2alpha1"
+	"github.com/cosmos/cosmos-sdk/api/cosmos/base/reflection/v2alpha1"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"strings"
 )
 
 type Client struct {
-	App           *v2alpha1.AppDescriptor
+	App           *reflectionv2alpha1.AppDescriptor
 	Registry      *Registry
 	Codec         *Codec
 	ModuleQueries map[protoreflect.FullName]protoreflect.ServiceDescriptor
@@ -29,34 +28,34 @@ func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, 
 	if err != nil {
 		return nil, err
 	}
-	cosmosReflection := v2alpha1.NewReflectionServiceClient(conn)
+	cosmosReflection := reflectionv2alpha1.NewReflectionServiceClient(conn)
 
-	authn, err := cosmosReflection.GetAuthnDescriptor(ctx, &v2alpha1.GetAuthnDescriptorRequest{})
+	authn, err := cosmosReflection.GetAuthnDescriptor(ctx, &reflectionv2alpha1.GetAuthnDescriptorRequest{})
 	if err != nil {
 		return nil, err
 	}
-	chain, err := cosmosReflection.GetChainDescriptor(ctx, &v2alpha1.GetChainDescriptorRequest{})
+	chain, err := cosmosReflection.GetChainDescriptor(ctx, &reflectionv2alpha1.GetChainDescriptorRequest{})
 	if err != nil {
 		return nil, err
 	}
-	codec, err := cosmosReflection.GetCodecDescriptor(ctx, &v2alpha1.GetCodecDescriptorRequest{})
+	codec, err := cosmosReflection.GetCodecDescriptor(ctx, &reflectionv2alpha1.GetCodecDescriptorRequest{})
 	if err != nil {
 		return nil, err
 	}
-	conf, err := cosmosReflection.GetConfigurationDescriptor(ctx, &v2alpha1.GetConfigurationDescriptorRequest{})
+	conf, err := cosmosReflection.GetConfigurationDescriptor(ctx, &reflectionv2alpha1.GetConfigurationDescriptorRequest{})
 	if err != nil {
 		return nil, err
 	}
-	query, err := cosmosReflection.GetQueryServicesDescriptor(ctx, &v2alpha1.GetQueryServicesDescriptorRequest{})
+	query, err := cosmosReflection.GetQueryServicesDescriptor(ctx, &reflectionv2alpha1.GetQueryServicesDescriptorRequest{})
 	if err != nil {
 		return nil, err
 	}
-	tx, err := cosmosReflection.GetTxDescriptor(ctx, &v2alpha1.GetTxDescriptorRequest{})
+	tx, err := cosmosReflection.GetTxDescriptor(ctx, &reflectionv2alpha1.GetTxDescriptorRequest{})
 	if err != nil {
 		return nil, err
 	}
 
-	app := &v2alpha1.AppDescriptor{
+	app := &reflectionv2alpha1.AppDescriptor{
 		Authn:         authn.Authn,
 		Chain:         chain.Chain,
 		Codec:         codec.Codec,

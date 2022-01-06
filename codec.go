@@ -76,7 +76,7 @@ func NewCodec(registry *Registry) *Codec {
 		},
 		jsonMarshal: protojson.MarshalOptions{
 			Multiline:       false,
-			Indent:          "\t",
+			Indent:          "",
 			AllowPartial:    false,
 			UseProtoNames:   false,
 			UseEnumNumbers:  false,
