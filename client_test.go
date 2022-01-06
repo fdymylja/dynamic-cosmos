@@ -51,7 +51,7 @@ func TestInvokeProposal(t *testing.T) {
 
 	req := reqt.New()
 	resp := respt.New()
-	err = c.Query(context.Background(), "/cosmos.gov.v1beta1.Query/Proposals", req, resp)
+	err = c.Query(context.Background(), "/cosmos.gov.v1beta1.Query/Proposals", req.Interface(), resp.Interface())
 	require.NoError(t, err)
 
 	jsonBytes, err := c.Codec.jsonMarshal.Marshal(resp.Interface())

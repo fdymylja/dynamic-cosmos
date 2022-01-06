@@ -3,6 +3,7 @@ package dynamic
 import (
 	"context"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/server/grpc/reflection/v2alpha1"
@@ -135,6 +136,6 @@ func (c *Client) prepare() error {
 	return nil
 }
 
-func (c *Client) Query(ctx context.Context, method string, req, resp protoreflect.Message) (err error) {
+func (c *Client) Query(ctx context.Context, method string, req, resp proto.Message) (err error) {
 	return c.grpc.Invoke(ctx, method, req, resp)
 }
