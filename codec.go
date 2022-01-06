@@ -12,6 +12,22 @@ type Codec struct {
 	jsonUnmarshal protojson.UnmarshalOptions
 }
 
+func (c *Codec) MarshalProto(m proto.Message) ([]byte, error) {
+	return c.marshal.Marshal(m)
+}
+
+func (c *Codec) UnmarshalProto(b []byte, m proto.Message) error {
+	return c.unmarshal.Unmarshal(b, m)
+}
+
+func (c *Codec) MarshalProtoJSON(m proto.Message) ([]byte, error) {
+	return c.jsonMarshal.Marshal(m)
+}
+
+func (c *Codec) UnmarshalProtoJSON(b []byte, m proto.Message) error {
+	return c.jsonUnmarshal.Unmarshal(b, m)
+}
+
 func NewCodec(registry *Registry) *Codec {
 	return &Codec{
 		marshal: proto.MarshalOptions{
