@@ -1,11 +1,12 @@
-package dynamic
+package codec
 
 import (
 	"context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"sync"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -192,7 +193,7 @@ func findNameInDescriptorProto(name, parent protoreflect.FullName, desc *descrip
 }
 
 func NewGRPCReflectionRemote(grpcEndpoint string) (*GRPCReflectionRemote, error) {
-	conn, err := grpc.Dial(grpcEndpoint, grpc.WithInsecure())
+	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

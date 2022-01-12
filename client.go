@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/api/cosmos/base/reflection/v2alpha1"
+	"github.com/fdymylja/dynamic-cosmos/codec"
+	"github.com/fdymylja/dynamic-cosmos/protoutil"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
-	"strings"
 )
 
 type Client struct {
 	App           *reflectionv2alpha1.AppDescriptor
-	Registry      *Registry
-	Codec         *Codec
+	Codec         *codec.Codec
 	ModuleQueries map[protoreflect.FullName]protoreflect.ServiceDescriptor
 	Messages      map[protoreflect.FullName]protoreflect.MessageType
 
@@ -23,7 +23,7 @@ type Client struct {
 	grpc grpc.ClientConnInterface
 }
 
-func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, tmEndpoint string) (*Client, error) {
+func NewClient(ctx context.Context, remote codec.RemoteRegistry, grpcEndpoint string, tmEndpoint string) (*Client, error) {
 	conn, err := grpc.DialContext(ctx, grpcEndpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, 
 	if err != nil {
 		return nil, err
 	}
-	codec, err := cosmosReflection.GetCodecDescriptor(ctx, &reflectionv2alpha1.GetCodecDescriptorRequest{})
+	codecInfo, err := cosmosReflection.GetCodecDescriptor(ctx, &reflectionv2alpha1.GetCodecDescriptorRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -58,17 +58,15 @@ func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, 
 	app := &reflectionv2alpha1.AppDescriptor{
 		Authn:         authn.Authn,
 		Chain:         chain.Chain,
-		Codec:         codec.Codec,
+		Codec:         codecInfo.Codec,
 		Configuration: conf.Config,
 		QueryServices: query.Queries,
 		Tx:            tx.Tx,
 	}
 
-	reg := NewRegistry(remote)
 	c := &Client{
 		App:           app,
-		Registry:      reg,
-		Codec:         NewCodec(reg),
+		Codec:         codec.NewCodec(remote),
 		ModuleQueries: map[protoreflect.FullName]protoreflect.ServiceDescriptor{},
 		Messages:      map[protoreflect.FullName]protoreflect.MessageType{},
 		tm:            nil,
@@ -110,7 +108,7 @@ func NewClient(ctx context.Context, remote RemoteRegistry, grpcEndpoint string, 
 func (c *Client) prepare() error {
 	// fetch query services
 	for _, svc := range c.App.QueryServices.QueryServices {
-		desc, err := c.Registry.FindDescriptorByName(protoreflect.FullName(svc.Fullname))
+		desc, err := c.Codec.Registry.FindDescriptorByName(protoreflect.FullName(svc.Fullname))
 		if err != nil {
 			return fmt.Errorf("unable to fetch information for query service %s: %w", svc.Fullname, err)
 		}
@@ -119,12 +117,9 @@ func (c *Client) prepare() error {
 	}
 	// fetch messages
 	for _, msg := range c.App.Tx.Msgs {
-		message := protoreflect.FullName(msg.MsgTypeUrl)
-		if i := strings.LastIndexByte(msg.MsgTypeUrl, '/'); i >= 0 {
-			message = message[i+len("/"):]
-		}
+		message := protoutil.FullNameFromURL(msg.MsgTypeUrl)
 
-		md, err := c.Registry.FindDescriptorByName(message)
+		md, err := c.Codec.Registry.FindDescriptorByName(message)
 		if err != nil {
 			return fmt.Errorf("unable to fetch information for message %s: %w", msg.MsgTypeUrl, err)
 		}
@@ -137,4 +132,12 @@ func (c *Client) prepare() error {
 
 func (c *Client) Query(ctx context.Context, method string, req, resp proto.Message) (err error) {
 	return c.grpc.Invoke(ctx, method, req, resp)
+}
+
+func (c *Client) NewTx() *Tx {
+	return NewTx()
+}
+
+func (c *Client) ClientConn() grpc.ClientConnInterface {
+	return c.grpc
 }

@@ -1,4 +1,4 @@
-package dynamic
+package codec
 
 import (
 	"fmt"
@@ -7,7 +7,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type ProtoOptions struct {
+	Marshal       proto.MarshalOptions
+	Unmarshal     proto.UnmarshalOptions
+	JSONMarshal   protojson.MarshalOptions
+	JSONUnmarshal protojson.UnmarshalOptions
+}
+
 type Codec struct {
+	Registry *Registry
+
 	marshal       proto.MarshalOptions
 	unmarshal     proto.UnmarshalOptions
 	jsonMarshal   protojson.MarshalOptions
@@ -30,6 +39,15 @@ func (c *Codec) UnmarshalProtoJSON(b []byte, m proto.Message) error {
 	return c.jsonUnmarshal.Unmarshal(b, m)
 }
 
+func (c *Codec) ProtoOptions() ProtoOptions {
+	return ProtoOptions{
+		Marshal:       c.marshal,
+		Unmarshal:     c.unmarshal,
+		JSONMarshal:   c.jsonMarshal,
+		JSONUnmarshal: c.jsonUnmarshal,
+	}
+}
+
 func (c *Codec) GRPCCodec() encoding.Codec {
 	return &grpcCodec{
 		m: c.marshal,
@@ -37,37 +55,10 @@ func (c *Codec) GRPCCodec() encoding.Codec {
 	}
 }
 
-var _ encoding.Codec = (*grpcCodec)(nil)
-
-type grpcCodec struct {
-	m proto.MarshalOptions
-	u proto.UnmarshalOptions
-}
-
-func (g *grpcCodec) Marshal(v interface{}) ([]byte, error) {
-	msg, ok := v.(proto.Message)
-	if !ok {
-		return nil, fmt.Errorf("dynamic cosmos grpc client can only work with proto.Message")
-	}
-
-	return g.m.Marshal(msg)
-}
-
-func (g *grpcCodec) Unmarshal(data []byte, v interface{}) error {
-	msg, ok := v.(proto.Message)
-	if !ok {
-		return fmt.Errorf("dynamic cosmos grpc client can only work with proto.Message")
-	}
-
-	return g.u.Unmarshal(data, msg)
-}
-
-func (g *grpcCodec) Name() string {
-	return "dynamic-cosmos-codec"
-}
-
-func NewCodec(registry *Registry) *Codec {
+func NewCodec(remote RemoteRegistry) *Codec {
+	registry := NewRegistry(remote)
 	return &Codec{
+		Registry: registry,
 		marshal: proto.MarshalOptions{
 			Deterministic: true,
 		},
@@ -89,4 +80,33 @@ func NewCodec(registry *Registry) *Codec {
 			Resolver:       registry,
 		},
 	}
+}
+
+var _ encoding.Codec = (*grpcCodec)(nil)
+
+type grpcCodec struct {
+	m proto.MarshalOptions
+	u proto.UnmarshalOptions
+}
+
+func (g *grpcCodec) Marshal(v interface{}) ([]byte, error) {
+	msg, ok := v.(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("dynamic cosmos grpcCodec client can only work with proto.Message")
+	}
+
+	return g.m.Marshal(msg)
+}
+
+func (g *grpcCodec) Unmarshal(data []byte, v interface{}) error {
+	msg, ok := v.(proto.Message)
+	if !ok {
+		return fmt.Errorf("dynamic cosmos grpcCodec client can only work with proto.Message")
+	}
+
+	return g.u.Unmarshal(data, msg)
+}
+
+func (g *grpcCodec) Name() string {
+	return "dynamic-cosmos-codec"
 }

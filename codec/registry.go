@@ -1,9 +1,8 @@
-package dynamic
+package codec
 
 import (
 	"errors"
-	"strings"
-
+	"github.com/fdymylja/dynamic-cosmos/protoutil"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -89,10 +88,7 @@ func (r *Registry) FindMessageByURL(url string) (protoreflect.MessageType, error
 		return nil, err
 	}
 
-	message := protoreflect.FullName(url)
-	if i := strings.LastIndexByte(url, '/'); i >= 0 {
-		message = message[i+len("/"):]
-	}
+	message := protoutil.FullNameFromURL(url)
 
 	md, err := r.FindDescriptorByName(message)
 	if err != nil {

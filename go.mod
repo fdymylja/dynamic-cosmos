@@ -5,7 +5,7 @@ go 1.17
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 require (
-	github.com/cosmos/cosmos-sdk/api v0.1.0-alpha1.0.20220106100622-8afbf95321f3
+	github.com/cosmos/cosmos-sdk/api v0.1.0-alpha2.0.20220111073656-d64253f98a29
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.14
 	google.golang.org/grpc v1.43.0
@@ -17,7 +17,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
-	github.com/cosmos/cosmos-proto v1.0.0-alpha4 // indirect
+	github.com/cosmos/cosmos-proto v1.0.0-alpha6 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
