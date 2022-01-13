@@ -17,6 +17,7 @@ import (
 type authenticationOptions struct {
 	signer             Signer
 	signerInfoProvider SignerInfoProvider
+	supportedMessages  map[protoreflect.FullName]struct{}
 }
 
 type Client struct {
@@ -31,7 +32,25 @@ type Client struct {
 	authOpt authenticationOptions
 }
 
-func NewClient(ctx context.Context, remote codec.RemoteRegistry, grpcEndpoint string, tmEndpoint string) (*Client, error) {
+type ClientOption func(c *Client)
+
+type AuthenticationOption func(options *authenticationOptions)
+
+func WithAuthenticationOption(opts ...AuthenticationOption) ClientOption {
+	return func(c *Client) {
+		for _, opt := range opts {
+			opt(&c.authOpt)
+		}
+	}
+}
+
+func WithSigner(s Signer) AuthenticationOption {
+	return func(options *authenticationOptions) {
+		options.signer = s
+	}
+}
+
+func NewClient(ctx context.Context, remote codec.RemoteRegistry, grpcEndpoint string, tmEndpoint string, opts ...ClientOption) (*Client, error) {
 	conn, err := grpc.DialContext(ctx, grpcEndpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -114,6 +133,18 @@ func NewClient(ctx context.Context, remote codec.RemoteRegistry, grpcEndpoint st
 	c.authOpt = authenticationOptions{
 		signer:             nil,
 		signerInfoProvider: newAuthModuleSignerInfoProvider(c.Codec, c.grpc),
+		supportedMessages: func() map[protoreflect.FullName]struct{} { // TODO(fdymylja): cleanup plz
+			m := make(map[protoreflect.FullName]struct{}, len(c.Messages))
+			for n := range c.Messages {
+				m[n] = struct{}{}
+			}
+
+			return m
+		}(),
+	}
+
+	for _, opt := range opts {
+		opt(c)
 	}
 	return c, nil
 }
@@ -148,7 +179,7 @@ func (c *Client) DynamicQuery(ctx context.Context, method string, req, resp prot
 }
 
 func (c *Client) NewTx() *Tx {
-	panic("impl")
+	return NewTx(c.Codec, c.authOpt.supportedMessages, c.App.Chain.Id, c.authOpt.signerInfoProvider, c.authOpt.signer)
 }
 
 func (c *Client) ClientConn() grpc.ClientConnInterface {

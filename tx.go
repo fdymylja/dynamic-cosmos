@@ -7,25 +7,23 @@ import (
 	basev1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/v1beta1"
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
+	"github.com/fdymylja/dynamic-cosmos/protoutil"
+	"github.com/fdymylja/dynamic-cosmos/signing"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type Signer interface {
-	Sign(addr string, bytes []byte) (signature []byte, err error)
-}
-
 func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, chainID string, signeInfoProvider SignerInfoProvider, signer Signer) *Tx {
 	return &Tx{
 		supported: supportedMsgs,
-		chainID:   "",
+		chainID:   chainID,
 		tx: &txv1beta1.Tx{
 			Body: &txv1beta1.TxBody{},
 			AuthInfo: &txv1beta1.AuthInfo{
 				SignerInfos: nil,
 				Fee:         &txv1beta1.Fee{},
-				Tip:         &txv1beta1.Tip{},
+				// Tip:         &txv1beta1.Tip{},
 			},
 			Signatures: nil,
 		},
@@ -60,6 +58,8 @@ func (t *Tx) AddMsgs(msgs ...proto.Message) error {
 		if err != nil {
 			return fmt.Errorf("unable to marshal %s as anypb.Any: %w", m.ProtoReflect().Descriptor().FullName(), err)
 		}
+
+		any.TypeUrl = "/" + string(protoutil.FullNameFromURL(any.TypeUrl)) // TODO(fdymylja): fixme
 
 		t.tx.Body.Messages = append(t.tx.Body.Messages, any)
 	}
@@ -134,6 +134,17 @@ func (t *Tx) Sign(ctx context.Context) (*txv1beta1.TxRaw, error) {
 			return nil, fmt.Errorf("unable to get auth info for address %s: %w", signer, err)
 		}
 
+		// NOTE: if pubkey is not set we need to fetch it somewhere
+		// this happens for accounts interacting for the first time
+		// with a chain
+		if info.SignerInfo.PublicKey == nil {
+			pubKey, err := t.signer.PubKeyForAddr(signer)
+			if err != nil {
+				return nil, fmt.Errorf("unable to get pubkey for address %s: %w", signer, err)
+			}
+			info.SignerInfo.PublicKey = pubKey
+		}
+
 		signerInfos = append(signerInfos, info)
 	}
 
@@ -141,33 +152,17 @@ func (t *Tx) Sign(ctx context.Context) (*txv1beta1.TxRaw, error) {
 	for _, info := range signerInfos {
 		t.tx.AuthInfo.SignerInfos = append(t.tx.AuthInfo.SignerInfos, info.SignerInfo)
 	}
-	// sign
-	bodyBytes, err := t.cdc.MarshalProto(t.tx.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	authInfoBytes, err := t.cdc.MarshalProto(t.tx.AuthInfo)
-	if err != nil {
-		return nil, err
-	}
 
 	signatures := make([][]byte, len(signerInfos))
 
 	for i, info := range signerInfos {
-		doc := &txv1beta1.SignDoc{
-			BodyBytes:     bodyBytes,
-			AuthInfoBytes: authInfoBytes,
-			ChainId:       t.chainID,
-			AccountNumber: info.AccountNumber,
-		}
 
-		docBytes, err := t.cdc.MarshalProto(doc)
+		signature, err := signing.Direct(t.cdc, t.tx.Body, t.tx.AuthInfo, t.chainID, info.AccountNumber)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to compute signature: %w", err)
 		}
 
-		signedDoc, err := t.signer.Sign(signers[i], docBytes)
+		signedDoc, err := t.signer.Sign(signers[i], signature)
 		if err != nil {
 			return nil, err
 		}
@@ -176,11 +171,7 @@ func (t *Tx) Sign(ctx context.Context) (*txv1beta1.TxRaw, error) {
 
 	t.tx.Signatures = signatures
 
-	return &txv1beta1.TxRaw{
-		BodyBytes:     bodyBytes,
-		AuthInfoBytes: authInfoBytes,
-		Signatures:    t.tx.Signatures,
-	}, nil
+	return txToTxRaw(t.cdc, t.tx)
 }
 
 func (t *Tx) Broadcast(ctx context.Context, mode txv1beta1.BroadcastMode) (*BroadcastTx, error) {
@@ -218,4 +209,22 @@ func (t *Tx) valid() error {
 }
 
 type BroadcastTx struct {
+}
+
+func txToTxRaw(cdc *codec.Codec, tx *txv1beta1.Tx) (*txv1beta1.TxRaw, error) {
+	bodyBytes, err := cdc.MarshalProto(tx.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	authBytes, err := cdc.MarshalProto(tx.AuthInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &txv1beta1.TxRaw{
+		BodyBytes:     bodyBytes,
+		AuthInfoBytes: authBytes,
+		Signatures:    tx.Signatures,
+	}, nil
 }

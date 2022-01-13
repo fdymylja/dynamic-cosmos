@@ -2,6 +2,7 @@ package dynamic
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	queryv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/query/v1beta1"
@@ -36,6 +37,16 @@ func TestNewClient(t *testing.T) {
 	multi := codec.NewMultiRemote(cacheRemo, grpcRem)
 
 	c, err = NewClient(context.Background(), multi, "34.94.191.28:9090", "")
+	require.NoError(t, err)
+
+	jsonBytes, err := c.Codec.MarshalProtoJSON(fds)
+	require.NoError(t, err)
+
+	f, err := os.OpenFile("./data/osmosis.proto.json", os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	require.NoError(t, err)
+	defer f.Close()
+
+	_, err = f.Write(jsonBytes)
 	require.NoError(t, err)
 }
 
