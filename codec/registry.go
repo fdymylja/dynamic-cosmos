@@ -2,6 +2,7 @@ package codec
 
 import (
 	"errors"
+
 	"github.com/fdymylja/dynamic-cosmos/protoutil"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -10,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-func NewRegistry(remote RemoteRegistry) *Registry {
+func NewRegistry(remote ProtoFileRegistry) *Registry {
 	return &Registry{
 		remote:    remote,
 		prefFiles: new(protoregistry.Files),
@@ -24,14 +25,15 @@ var (
 	_ protoregistry.MessageTypeResolver   = (*Registry)(nil)
 )
 
-type RemoteRegistry interface {
+type ProtoFileRegistry interface {
 	ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error)
 	ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error)
 	Close() error
 }
 
 type Registry struct {
-	remote RemoteRegistry
+	// TODO(fdymylja): probably needs to be protected by a mutex.
+	remote ProtoFileRegistry
 
 	prefFiles *protoregistry.Files
 	prefTypes *protoregistry.Types
@@ -160,4 +162,8 @@ func (r *Registry) Save() (*descriptorpb.FileDescriptorSet, error) {
 	})
 
 	return set, err
+}
+
+func (r *Registry) Remote() ProtoFileRegistry {
+	return r.remote
 }

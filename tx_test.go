@@ -24,7 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func getCacheRemote(t *testing.T) codec.RemoteRegistry {
+func getCacheRemote(t *testing.T) codec.ProtoFileRegistry {
 	f, err := os.Open("./data/osmosis.proto.json")
 	require.NoError(t, err)
 	defer f.Close()
@@ -91,9 +91,12 @@ func TestTx_Sign(t *testing.T) {
 	addr := derive(t, "osmo", privKeyHex)
 
 	privKey, err := keys.ImportPrivateKey(privKeyHex, types.Secp256k1)
-	client, err := NewClient(context.Background(), getCacheRemote(t), "34.94.191.28:9090", "tcp://34.94.191.28:26657",
-		WithAuthenticationOption(
-			WithSigner(&mapSigner{map[string]*keys.KeyPair{addr: privKey}})))
+	client, err := Dial(context.Background(), "34.94.191.28:9090", "tcp://34.94.191.28:26657",
+		WithRemoteRegistry(getCacheRemote(t)),
+		WithAuthenticationOptions(
+			WithSigner(&mapSigner{map[string]*keys.KeyPair{addr: privKey}}),
+		),
+	)
 	require.NoError(t, err)
 
 	tx := client.NewTx()

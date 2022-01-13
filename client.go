@@ -14,12 +14,6 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-type authenticationOptions struct {
-	signer             Signer
-	signerInfoProvider SignerInfoProvider
-	supportedMessages  map[protoreflect.FullName]struct{}
-}
-
 type Client struct {
 	App           *reflectionv2alpha1.AppDescriptor
 	Codec         *codec.Codec
@@ -29,124 +23,16 @@ type Client struct {
 	tm   *http.HTTP
 	grpc grpc.ClientConnInterface
 
-	authOpt authenticationOptions
+	authOpt *authenticationOptions
 }
 
-type ClientOption func(c *Client)
-
-type AuthenticationOption func(options *authenticationOptions)
-
-func WithAuthenticationOption(opts ...AuthenticationOption) ClientOption {
-	return func(c *Client) {
-		for _, opt := range opts {
-			opt(&c.authOpt)
-		}
-	}
-}
-
-func WithSigner(s Signer) AuthenticationOption {
-	return func(options *authenticationOptions) {
-		options.signer = s
-	}
-}
-
-func NewClient(ctx context.Context, remote codec.RemoteRegistry, grpcEndpoint string, tmEndpoint string, opts ...ClientOption) (*Client, error) {
-	conn, err := grpc.DialContext(ctx, grpcEndpoint, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	cosmosReflection := reflectionv2alpha1.NewReflectionServiceClient(conn)
-
-	authn, err := cosmosReflection.GetAuthnDescriptor(ctx, &reflectionv2alpha1.GetAuthnDescriptorRequest{})
-	if err != nil {
-		return nil, err
-	}
-	chain, err := cosmosReflection.GetChainDescriptor(ctx, &reflectionv2alpha1.GetChainDescriptorRequest{})
-	if err != nil {
-		return nil, err
-	}
-	codecInfo, err := cosmosReflection.GetCodecDescriptor(ctx, &reflectionv2alpha1.GetCodecDescriptorRequest{})
-	if err != nil {
-		return nil, err
-	}
-	conf, err := cosmosReflection.GetConfigurationDescriptor(ctx, &reflectionv2alpha1.GetConfigurationDescriptorRequest{})
-	if err != nil {
-		return nil, err
-	}
-	query, err := cosmosReflection.GetQueryServicesDescriptor(ctx, &reflectionv2alpha1.GetQueryServicesDescriptorRequest{})
-	if err != nil {
-		return nil, err
-	}
-	tx, err := cosmosReflection.GetTxDescriptor(ctx, &reflectionv2alpha1.GetTxDescriptorRequest{})
-	if err != nil {
-		return nil, err
+func Dial(ctx context.Context, grpcEndpoint string, tmEndpoint string, dialOptions ...DialOption) (*Client, error) {
+	opts := newOptions(grpcEndpoint, tmEndpoint)
+	for _, o := range dialOptions {
+		o(opts)
 	}
 
-	app := &reflectionv2alpha1.AppDescriptor{
-		Authn:         authn.Authn,
-		Chain:         chain.Chain,
-		Codec:         codecInfo.Codec,
-		Configuration: conf.Config,
-		QueryServices: query.Queries,
-		Tx:            tx.Tx,
-	}
-
-	c := &Client{
-		App:           app,
-		Codec:         codec.NewCodec(remote),
-		ModuleQueries: map[protoreflect.FullName]protoreflect.ServiceDescriptor{},
-		Messages:      map[protoreflect.FullName]protoreflect.MessageType{},
-		tm:            nil,
-	}
-
-	err = c.prepare()
-	if err != nil {
-		return nil, err
-	}
-
-	tm, err := http.New(tmEndpoint, "/websocket")
-	if err != nil {
-		return nil, err
-	}
-
-	c.tm = tm
-
-	// now we recreate a new grpc with a custom codec that uses our proto marshaler and unmarshaler
-	// which enable us to resolve and handle message dynamically without having knowledge of those
-	err = conn.Close()
-	if err != nil {
-		return nil, err
-	}
-	conn, err = grpc.DialContext(
-		ctx, grpcEndpoint,
-		grpc.WithInsecure(),
-		grpc.WithDefaultCallOptions(
-			grpc.ForceCodec(c.Codec.GRPCCodec()),
-		),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	c.grpc = conn
-
-	c.authOpt = authenticationOptions{
-		signer:             nil,
-		signerInfoProvider: newAuthModuleSignerInfoProvider(c.Codec, c.grpc),
-		supportedMessages: func() map[protoreflect.FullName]struct{} { // TODO(fdymylja): cleanup plz
-			m := make(map[protoreflect.FullName]struct{}, len(c.Messages))
-			for n := range c.Messages {
-				m[n] = struct{}{}
-			}
-
-			return m
-		}(),
-	}
-
-	for _, opt := range opts {
-		opt(c)
-	}
-	return c, nil
+	return opts.setup(ctx)
 }
 
 func (c *Client) prepare() error {

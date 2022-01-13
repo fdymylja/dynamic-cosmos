@@ -2,6 +2,7 @@ package codec
 
 import (
 	"fmt"
+
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -55,7 +56,7 @@ func (c *Codec) GRPCCodec() encoding.Codec {
 	}
 }
 
-func NewCodec(remote RemoteRegistry) *Codec {
+func NewCodec(remote ProtoFileRegistry) *Codec {
 	registry := NewRegistry(remote)
 	return &Codec{
 		Registry: registry,

@@ -2,10 +2,11 @@ package codec
 
 import (
 	"context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"sync"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/protobuf/proto"
@@ -14,16 +15,16 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-var _ RemoteRegistry = (*GRPCReflectionRemote)(nil)
-var _ RemoteRegistry = (*CacheRemote)(nil)
-var _ RemoteRegistry = (*MultiRemote)(nil)
+var _ ProtoFileRegistry = (*GRPCReflectionRemote)(nil)
+var _ ProtoFileRegistry = (*CacheRemote)(nil)
+var _ ProtoFileRegistry = (*MultiRemote)(nil)
 
-func NewMultiRemote(remotes ...RemoteRegistry) *MultiRemote {
+func NewMultiRemote(remotes ...ProtoFileRegistry) *MultiRemote {
 	return &MultiRemote{remotes: remotes}
 }
 
 type MultiRemote struct {
-	remotes []RemoteRegistry
+	remotes []ProtoFileRegistry
 }
 
 func (m MultiRemote) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error) {
@@ -205,7 +206,7 @@ func NewGRPCReflectionRemote(grpcEndpoint string) (*GRPCReflectionRemote, error)
 	}, nil
 }
 
-// GRPCReflectionRemote is a RemoteRegistry
+// GRPCReflectionRemote is a ProtoFileRegistry
 // which uses grpc reflection to resolve files.
 type GRPCReflectionRemote struct {
 	rpb    grpc_reflection_v1alpha.ServerReflectionClient

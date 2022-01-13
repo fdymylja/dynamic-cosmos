@@ -14,10 +14,8 @@ import (
 
 func TestNewClient(t *testing.T) {
 	const endpoint = "34.94.191.28:9090"
-	grpcRem, err := codec.NewGRPCReflectionRemote(endpoint)
-	require.NoError(t, err)
 
-	c, err := NewClient(context.Background(), grpcRem, "34.94.191.28:9090", "")
+	c, err := Dial(context.Background(), "34.94.191.28:9090", "")
 	require.NoError(t, err)
 	for k, svc := range c.ModuleQueries {
 		t.Logf("%s", k)
@@ -34,9 +32,9 @@ func TestNewClient(t *testing.T) {
 	require.NoError(t, err)
 
 	cacheRemo := codec.NewCacheRemote(fds)
-	multi := codec.NewMultiRemote(cacheRemo, grpcRem)
+	multi := codec.NewMultiRemote(cacheRemo, c.Codec.Registry.Remote())
 
-	c, err = NewClient(context.Background(), multi, "34.94.191.28:9090", "")
+	c, err = Dial(context.Background(), "34.94.191.28:9090", "", WithRemoteRegistry(multi))
 	require.NoError(t, err)
 
 	jsonBytes, err := c.Codec.MarshalProtoJSON(fds)
@@ -53,17 +51,15 @@ func TestNewClient(t *testing.T) {
 func TestInvokeProposal(t *testing.T) {
 	const endpoint = "34.94.191.28:9090"
 	const tmEndpoint = "tcp://34.94.191.28:26657"
-	grpcRem, err := codec.NewGRPCReflectionRemote(endpoint)
-	require.NoError(t, err)
 
-	c, err := NewClient(context.Background(), grpcRem, endpoint, tmEndpoint)
+	c, err := Dial(context.Background(), endpoint, tmEndpoint)
 	require.NoError(t, err)
 
 	respt, err := c.Codec.Registry.FindMessageByName("cosmos.gov.v1beta1.QueryProposalsResponse")
 	require.NoError(t, err)
 
 	resp := respt.New()
-	err = c.DynamicQuery(context.Background(), "/cosmos.gov.v1beta1.DynamicQuery/Proposals", &govv1beta1.QueryProposalsRequest{
+	err = c.DynamicQuery(context.Background(), "/cosmos.gov.v1beta1.Query/Proposals", &govv1beta1.QueryProposalsRequest{
 		ProposalStatus: govv1beta1.ProposalStatus_PROPOSAL_STATUS_UNSPECIFIED,
 		Voter:          "",
 		Depositor:      "",
