@@ -3,6 +3,7 @@ package dynamic
 import (
 	"context"
 	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/api/cosmos/base/reflection/v2alpha1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
 	"github.com/fdymylja/dynamic-cosmos/protoutil"
@@ -13,6 +14,11 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
+type authenticationOptions struct {
+	signer             Signer
+	signerInfoProvider SignerInfoProvider
+}
+
 type Client struct {
 	App           *reflectionv2alpha1.AppDescriptor
 	Codec         *codec.Codec
@@ -21,6 +27,8 @@ type Client struct {
 
 	tm   *http.HTTP
 	grpc grpc.ClientConnInterface
+
+	authOpt authenticationOptions
 }
 
 func NewClient(ctx context.Context, remote codec.RemoteRegistry, grpcEndpoint string, tmEndpoint string) (*Client, error) {
@@ -102,6 +110,11 @@ func NewClient(ctx context.Context, remote codec.RemoteRegistry, grpcEndpoint st
 	}
 
 	c.grpc = conn
+
+	c.authOpt = authenticationOptions{
+		signer:             nil,
+		signerInfoProvider: newAuthModuleSignerInfoProvider(c.Codec, c.grpc),
+	}
 	return c, nil
 }
 
@@ -130,12 +143,12 @@ func (c *Client) prepare() error {
 	return nil
 }
 
-func (c *Client) Query(ctx context.Context, method string, req, resp proto.Message) (err error) {
+func (c *Client) DynamicQuery(ctx context.Context, method string, req, resp proto.Message) (err error) {
 	return c.grpc.Invoke(ctx, method, req, resp)
 }
 
 func (c *Client) NewTx() *Tx {
-	return NewTx()
+	panic("impl")
 }
 
 func (c *Client) ClientConn() grpc.ClientConnInterface {

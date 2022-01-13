@@ -2,9 +2,10 @@ package protoutil
 
 import (
 	"fmt"
+	"strings"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"strings"
 )
 
 // FullNameFromURL returns protoreflect.FullName from proto.Messages' typeURL
@@ -17,7 +18,7 @@ func FullNameFromURL(typeURL string) protoreflect.FullName {
 	return message
 }
 
-func Merge(src, dst proto.Message, reset bool) {
+func DynamicMerge(src, dst proto.Message, reset bool) {
 	if src.ProtoReflect().Descriptor() != dst.ProtoReflect().Descriptor() && src.ProtoReflect().Descriptor().FullName() != dst.ProtoReflect().Descriptor().FullName() {
 		panic(fmt.Sprintf("src and dst are not the same message: %s <-> %s", src.ProtoReflect().Descriptor().FullName(), dst.ProtoReflect().Descriptor().FullName()))
 	}

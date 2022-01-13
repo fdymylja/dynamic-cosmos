@@ -2,8 +2,11 @@ package dynamic
 
 import (
 	"context"
-	"github.com/fdymylja/dynamic-cosmos/codec"
 	"testing"
+
+	queryv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/query/v1beta1"
+	govv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/gov/v1beta1"
+	"github.com/fdymylja/dynamic-cosmos/codec"
 
 	"github.com/stretchr/testify/require"
 )
@@ -45,14 +48,22 @@ func TestInvokeProposal(t *testing.T) {
 	c, err := NewClient(context.Background(), grpcRem, endpoint, tmEndpoint)
 	require.NoError(t, err)
 
-	reqt, err := c.Codec.Registry.FindMessageByName("cosmos.gov.v1beta1.QueryProposalsRequest")
-	require.NoError(t, err)
 	respt, err := c.Codec.Registry.FindMessageByName("cosmos.gov.v1beta1.QueryProposalsResponse")
 	require.NoError(t, err)
 
-	req := reqt.New()
 	resp := respt.New()
-	err = c.Query(context.Background(), "/cosmos.gov.v1beta1.Query/Proposals", req.Interface(), resp.Interface())
+	err = c.DynamicQuery(context.Background(), "/cosmos.gov.v1beta1.DynamicQuery/Proposals", &govv1beta1.QueryProposalsRequest{
+		ProposalStatus: govv1beta1.ProposalStatus_PROPOSAL_STATUS_UNSPECIFIED,
+		Voter:          "",
+		Depositor:      "",
+		Pagination: &queryv1beta1.PageRequest{
+			Key:        nil,
+			Offset:     0,
+			Limit:      10000000000,
+			CountTotal: false,
+			Reverse:    false,
+		},
+	}, resp.Interface())
 	require.NoError(t, err)
 
 	jsonBytes, err := c.Codec.MarshalProtoJSON(resp.Interface())
