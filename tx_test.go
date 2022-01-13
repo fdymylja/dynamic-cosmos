@@ -87,8 +87,7 @@ func (m mapSigner) Sign(addr string, bytes []byte) (signature []byte, err error)
 }
 
 func TestTx_Sign(t *testing.T) {
-	const privKeyHex = "fill your private key hex here"
-
+	const privKeyHex = "933fc460c9120b106d443cb4fc842e3a36d1705ef913fda8d89eee5f6766e916"
 	addr := derive(t, "osmo", privKeyHex)
 
 	privKey, err := keys.ImportPrivateKey(privKeyHex, types.Secp256k1)
