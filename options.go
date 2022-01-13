@@ -73,6 +73,10 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 			return nil, fmt.Errorf("unable to setup app descriptor: %w", err)
 		}
 	}
+
+	// setup default queriers
+	queriers := o.setQueriers(o.appDesc.QueryServices, conn)
+
 	// set up authentication options
 	err = o.auth.setup(cdc, conn, o.appDesc.Tx)
 	if err != nil {
@@ -85,11 +89,12 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 	} // TODO(fdymylja): this does not check if tendermint endpoint really works
 
 	return &Client{
-		App:     o.appDesc,
-		Codec:   cdc,
-		tm:      tm,
-		grpc:    conn,
-		authOpt: o.auth,
+		App:      o.appDesc,
+		Codec:    cdc,
+		Queriers: queriers,
+		tm:       tm,
+		grpc:     conn,
+		authOpt:  o.auth,
 	}, nil
 }
 
@@ -130,6 +135,11 @@ func (o *options) setAppDesc(ctx context.Context, conn grpc.ClientConnInterface)
 	}
 
 	return nil
+}
+
+func (o *options) setQueriers(qsd *reflectionv2alpha1.QueryServicesDescriptor, conn grpc.ClientConnInterface) Queriers {
+	// TODO(fdymylja): impl
+	return Queriers{}
 }
 
 // DialOption defines a Client Dial option
@@ -209,4 +219,19 @@ func (e erroringSigner) Sign(_ string, _ []byte) (signature []byte, err error) {
 
 func (e erroringSigner) PubKeyForAddr(_ string) (*anypb.Any, error) {
 	return nil, fmt.Errorf("this setup does not support sending transactions")
+}
+
+var _ grpc.ClientConnInterface = (*erroringConn)(nil)
+
+// erroringConn is a grpc.ClientConnInterface that returns the provided error
+type erroringConn struct {
+	err error
+}
+
+func (e erroringConn) Invoke(ctx context.Context, method string, args interface{}, reply interface{}, opts ...grpc.CallOption) error {
+	return e.err
+}
+
+func (e erroringConn) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	return nil, e.err
 }

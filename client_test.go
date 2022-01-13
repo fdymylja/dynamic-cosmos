@@ -17,13 +17,13 @@ func TestNewClient(t *testing.T) {
 
 	c, err := Dial(context.Background(), "34.94.191.28:9090", "")
 	require.NoError(t, err)
-	for k, svc := range c.ModuleQueries {
+	for k, svc := range c.dynQueriers {
 		t.Logf("%s", k)
 		t.Logf(svc.ParentFile().Path())
 		t.Log(svc.ParentFile().FullName())
 	}
 
-	for name, msg := range c.Messages {
+	for name, msg := range c.dynMessage {
 		t.Logf("message typeURL: %s, name: %s", name, msg.Descriptor().Name())
 	}
 
