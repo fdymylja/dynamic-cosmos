@@ -83,7 +83,7 @@ func (m mapSigner) Sign(addr string, bytes []byte) (signature []byte, err error)
 		return nil, err
 	}
 
-	return sig.SigningPayload.Bytes, nil
+	return sig.Bytes, nil
 }
 
 func TestTx_Sign(t *testing.T) {
