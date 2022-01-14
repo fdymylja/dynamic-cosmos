@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type ProtoOptions struct {
@@ -22,6 +23,18 @@ type Codec struct {
 	unmarshal     proto.UnmarshalOptions
 	jsonMarshal   protojson.MarshalOptions
 	jsonUnmarshal protojson.UnmarshalOptions
+}
+
+func (c *Codec) NewAny(m proto.Message) (*anypb.Any, error) {
+	b, err := c.marshal.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+
+	return &anypb.Any{
+		TypeUrl: "/" + string(m.ProtoReflect().Descriptor().FullName()),
+		Value:   b,
+	}, nil
 }
 
 func (c *Codec) MarshalProto(m proto.Message) ([]byte, error) {

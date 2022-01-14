@@ -7,11 +7,9 @@ import (
 	basev1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/v1beta1"
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
-	"github.com/fdymylja/dynamic-cosmos/protoutil"
 	"github.com/fdymylja/dynamic-cosmos/signing"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, chainID string, signeInfoProvider SignerInfoProvider, signer Signer) *Tx {
@@ -53,13 +51,10 @@ func (t *Tx) AddMsgs(msgs ...proto.Message) error {
 			return fmt.Errorf("msg %s is not supported by the chain", m.ProtoReflect().Descriptor().FullName())
 		}
 
-		any := new(anypb.Any)
-		err := anypb.MarshalFrom(any, m, t.cdc.ProtoOptions().Marshal)
+		any, err := t.cdc.NewAny(m)
 		if err != nil {
 			return fmt.Errorf("unable to marshal %s as anypb.Any: %w", m.ProtoReflect().Descriptor().FullName(), err)
 		}
-
-		any.TypeUrl = "/" + string(protoutil.FullNameFromURL(any.TypeUrl)) // TODO(fdymylja): fixme
 
 		t.tx.Body.Messages = append(t.tx.Body.Messages, any)
 	}
