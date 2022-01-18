@@ -21,7 +21,7 @@ func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, c
 			AuthInfo: &txv1beta1.AuthInfo{
 				SignerInfos: nil,
 				Fee:         &txv1beta1.Fee{},
-				// Tip:         &txv1beta1.Tip{},
+				// Tip:         &txv1beta1.Tip{}, // TODO(fdymylja): commented out because this will be treated as unknown field in certain versions :(
 			},
 			Signatures: nil,
 		},
@@ -170,7 +170,27 @@ func (t *Tx) Sign(ctx context.Context) (*txv1beta1.TxRaw, error) {
 }
 
 func (t *Tx) Broadcast(ctx context.Context, mode txv1beta1.BroadcastMode) (*BroadcastTx, error) {
-	panic("impl")
+	signedTxRaw, err := t.Sign(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	txBytes, err := t.cdc.MarshalProto(signedTxRaw)
+	if err != nil {
+		return nil, err
+	}
+	panic(txBytes)
+	// TODO(fdymylja): finalise
+	switch mode {
+	case txv1beta1.BroadcastMode_BROADCAST_MODE_ASYNC:
+		return nil, nil
+	case txv1beta1.BroadcastMode_BROADCAST_MODE_BLOCK:
+		return nil, nil
+	case txv1beta1.BroadcastMode_BROADCAST_MODE_SYNC:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unsupported broadcast mode: %s", mode)
+	}
 }
 
 func (t *Tx) valid() error {
@@ -201,9 +221,6 @@ func (t *Tx) valid() error {
 	}
 
 	return nil
-}
-
-type BroadcastTx struct {
 }
 
 func txToTxRaw(cdc *codec.Codec, tx *txv1beta1.Tx) (*txv1beta1.TxRaw, error) {
