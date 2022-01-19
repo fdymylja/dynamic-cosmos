@@ -3,6 +3,8 @@ package dynamic
 import (
 	"context"
 	"fmt"
+	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
+	"github.com/fdymylja/dynamic-cosmos/tx"
 
 	reflectionv2alpha1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/reflection/v2alpha1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
@@ -83,18 +85,32 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("unable to setup authentication options: %w", err)
 	}
 
+	// set up tendermint
 	tm, err := http.New(o.tendermintEndpoint, "/websocket")
 	if err != nil {
 		return nil, err
-	} // TODO(fdymylja): this does not check if tendermint endpoint really works
+	}
+	err = tm.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	txWatcher, err := tx.DialWatcher(ctx, tm)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Client{
-		App:      o.appDesc,
-		Codec:    cdc,
-		Queriers: queriers,
-		tm:       tm,
-		grpc:     conn,
-		authOpt:  o.auth,
+		App:         o.appDesc,
+		Codec:       cdc,
+		Queriers:    queriers,
+		dynQueriers: nil,
+		dynMessage:  nil,
+		tm:          tm,
+		grpc:        conn,
+		watcher:     txWatcher,
+		txSvc:       txv1beta1.NewServiceClient(conn),
+		authOpt:     o.auth,
 	}, nil
 }
 

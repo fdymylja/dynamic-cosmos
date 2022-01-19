@@ -14,10 +14,11 @@ import (
 func TestNewTxWatcher(t *testing.T) {
 	h, err := http.New("tcp://34.94.191.28:26657", "/websocket")
 	require.NoError(t, h.Start())
+	defer h.Stop()
 	require.NoError(t, err)
-	x, err := NewWatcher(context.Background(), h)
+	x, err := DialWatcher(context.Background(), h)
 	require.NoError(t, err)
-	require.Nil(t, x)
+	defer x.Stop()
 
 	time.Sleep(155 * time.Second)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -116,18 +117,10 @@ func TestTx_Sign(t *testing.T) {
 	tx.SetFeePayer(addr)
 	tx.SetFee(&basev1beta1.Coin{Denom: "uosmo", Amount: "1"})
 	tx.SetGasLimit(500000)
-	signed, err := tx.Sign(context.Background())
+	res, err := tx.Broadcast(context.Background(), txv1beta1.BroadcastMode_BROADCAST_MODE_SYNC)
 	require.NoError(t, err)
 
-	t.Logf("%s", signed)
-
-	b, err := client.Codec.MarshalProto(signed)
-
-	t.Logf("%x", b)
-
-	res, err := client.tm.BroadcastTxCommit(context.Background(), b)
-	require.NoError(t, err)
-	t.Logf("%#v", res)
+	t.Logf("%#v", <-res)
 }
 
 func derive(t *testing.T, bech32Prefix, privKeyHex string) string {

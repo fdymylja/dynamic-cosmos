@@ -3,16 +3,16 @@ package dynamic
 import (
 	"context"
 	"fmt"
-
 	basev1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/v1beta1"
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
 	"github.com/fdymylja/dynamic-cosmos/signing"
+	"github.com/fdymylja/dynamic-cosmos/tx"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, chainID string, signeInfoProvider SignerInfoProvider, signer Signer) *Tx {
+func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, chainID string, signeInfoProvider SignerInfoProvider, signer Signer, watcher *tx.Watcher, txSvc txv1beta1.ServiceClient) *Tx {
 	return &Tx{
 		supported: supportedMsgs,
 		chainID:   chainID,
@@ -29,6 +29,8 @@ func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, c
 		signersAddr:      map[string]struct{}{},
 		authInfoProvider: signeInfoProvider,
 		signer:           signer,
+		watcher:          watcher,
+		txSvc:            txSvc,
 	}
 }
 
@@ -42,6 +44,8 @@ type Tx struct {
 	signersAddr      map[string]struct{}
 	authInfoProvider SignerInfoProvider
 	signer           Signer
+	watcher          *tx.Watcher
+	txSvc            txv1beta1.ServiceClient
 }
 
 func (t *Tx) AddMsgs(msgs ...proto.Message) error {
@@ -169,7 +173,11 @@ func (t *Tx) Sign(ctx context.Context) (*txv1beta1.TxRaw, error) {
 	return txToTxRaw(t.cdc, t.tx)
 }
 
-func (t *Tx) Broadcast(ctx context.Context, mode txv1beta1.BroadcastMode) (*BroadcastTx, error) {
+func (t *Tx) Broadcast(ctx context.Context, mode txv1beta1.BroadcastMode) (<-chan *BroadcastTx, error) {
+	if t.watcher == nil || t.txSvc == nil {
+		return nil, fmt.Errorf("this Tx setup does not support broadcasting")
+	}
+
 	signedTxRaw, err := t.Sign(ctx)
 	if err != nil {
 		return nil, err
@@ -179,18 +187,7 @@ func (t *Tx) Broadcast(ctx context.Context, mode txv1beta1.BroadcastMode) (*Broa
 	if err != nil {
 		return nil, err
 	}
-	panic(txBytes)
-	// TODO(fdymylja): finalise
-	switch mode {
-	case txv1beta1.BroadcastMode_BROADCAST_MODE_ASYNC:
-		return nil, nil
-	case txv1beta1.BroadcastMode_BROADCAST_MODE_BLOCK:
-		return nil, nil
-	case txv1beta1.BroadcastMode_BROADCAST_MODE_SYNC:
-		return nil, nil
-	default:
-		return nil, fmt.Errorf("unsupported broadcast mode: %s", mode)
-	}
+	return NewBroadcastTx(ctx, txBytes, mode, t.txSvc, t.watcher)
 }
 
 func (t *Tx) valid() error {

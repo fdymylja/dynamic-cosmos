@@ -5,10 +5,10 @@ go 1.17
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 require (
-	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/coinbase/rosetta-sdk-go v0.7.2
 	github.com/cosmos/btcutil v1.0.4
 	github.com/cosmos/cosmos-sdk/api v0.1.0-alpha2.0.20220111073656-d64253f98a29
+	github.com/hashicorp/go-uuid v1.0.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.14
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
