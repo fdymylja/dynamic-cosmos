@@ -3,6 +3,8 @@ package dynamic
 import (
 	"context"
 	"fmt"
+	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
+	"github.com/fdymylja/dynamic-cosmos/tx"
 
 	authv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/auth/v1beta1"
 	bankv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/bank/v1beta1"
@@ -45,8 +47,10 @@ type Client struct {
 	dynQueriers map[protoreflect.FullName]protoreflect.ServiceDescriptor
 	dynMessage  map[protoreflect.FullName]protoreflect.MessageType
 
-	tm   *http.HTTP
-	grpc grpc.ClientConnInterface
+	tm      *http.HTTP
+	grpc    grpc.ClientConnInterface
+	watcher *tx.Watcher
+	txSvc   txv1beta1.ServiceClient
 
 	authOpt *authenticationOptions
 }
@@ -91,7 +95,7 @@ func (c *Client) DynamicQuery(ctx context.Context, method string, req, resp prot
 }
 
 func (c *Client) NewTx() *Tx {
-	return NewTx(c.Codec, c.authOpt.supportedMessages, c.App.Chain.Id, c.authOpt.signerInfoProvider, c.authOpt.signer)
+	return NewTx(c.Codec, c.authOpt.supportedMessages, c.App.Chain.Id, c.authOpt.signerInfoProvider, c.authOpt.signer, c.watcher, c.txSvc)
 }
 
 func (c *Client) ClientConn() grpc.ClientConnInterface {

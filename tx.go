@@ -3,16 +3,16 @@ package dynamic
 import (
 	"context"
 	"fmt"
-
 	basev1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/v1beta1"
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
 	"github.com/fdymylja/dynamic-cosmos/signing"
+	"github.com/fdymylja/dynamic-cosmos/tx"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, chainID string, signeInfoProvider SignerInfoProvider, signer Signer) *Tx {
+func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, chainID string, signeInfoProvider SignerInfoProvider, signer Signer, watcher *tx.Watcher, txSvc txv1beta1.ServiceClient) *Tx {
 	return &Tx{
 		supported: supportedMsgs,
 		chainID:   chainID,
@@ -21,7 +21,7 @@ func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, c
 			AuthInfo: &txv1beta1.AuthInfo{
 				SignerInfos: nil,
 				Fee:         &txv1beta1.Fee{},
-				// Tip:         &txv1beta1.Tip{},
+				// Tip:         &txv1beta1.Tip{}, // TODO(fdymylja): commented out because this will be treated as unknown field in certain versions :(
 			},
 			Signatures: nil,
 		},
@@ -29,6 +29,8 @@ func NewTx(cdc *codec.Codec, supportedMsgs map[protoreflect.FullName]struct{}, c
 		signersAddr:      map[string]struct{}{},
 		authInfoProvider: signeInfoProvider,
 		signer:           signer,
+		watcher:          watcher,
+		txSvc:            txSvc,
 	}
 }
 
@@ -42,6 +44,8 @@ type Tx struct {
 	signersAddr      map[string]struct{}
 	authInfoProvider SignerInfoProvider
 	signer           Signer
+	watcher          *tx.Watcher
+	txSvc            txv1beta1.ServiceClient
 }
 
 func (t *Tx) AddMsgs(msgs ...proto.Message) error {
@@ -169,8 +173,21 @@ func (t *Tx) Sign(ctx context.Context) (*txv1beta1.TxRaw, error) {
 	return txToTxRaw(t.cdc, t.tx)
 }
 
-func (t *Tx) Broadcast(ctx context.Context, mode txv1beta1.BroadcastMode) (*BroadcastTx, error) {
-	panic("impl")
+func (t *Tx) Broadcast(ctx context.Context, mode txv1beta1.BroadcastMode) (<-chan *BroadcastTx, error) {
+	if t.watcher == nil || t.txSvc == nil {
+		return nil, fmt.Errorf("this Tx setup does not support broadcasting")
+	}
+
+	signedTxRaw, err := t.Sign(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	txBytes, err := t.cdc.MarshalProto(signedTxRaw)
+	if err != nil {
+		return nil, err
+	}
+	return NewBroadcastTx(ctx, txBytes, mode, t.txSvc, t.watcher)
 }
 
 func (t *Tx) valid() error {
@@ -201,9 +218,6 @@ func (t *Tx) valid() error {
 	}
 
 	return nil
-}
-
-type BroadcastTx struct {
 }
 
 func txToTxRaw(cdc *codec.Codec, tx *txv1beta1.Tx) (*txv1beta1.TxRaw, error) {
