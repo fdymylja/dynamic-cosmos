@@ -3,6 +3,7 @@ package dynamic
 import (
 	"context"
 	"fmt"
+
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/tx"
 
@@ -78,6 +79,8 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 
 	// setup default queriers
 	queriers := o.setQueriers(o.appDesc.QueryServices, conn)
+	// setup addresses
+	addresses := o.addresses(o.appDesc.Configuration)
 
 	// set up authentication options
 	err = o.auth.setup(cdc, conn, o.appDesc.Tx)
@@ -103,6 +106,7 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 	return &Client{
 		App:         o.appDesc,
 		Codec:       cdc,
+		Addresses:   addresses,
 		Queriers:    queriers,
 		dynQueriers: nil,
 		dynMessage:  nil,
@@ -156,6 +160,10 @@ func (o *options) setAppDesc(ctx context.Context, conn grpc.ClientConnInterface)
 func (o *options) setQueriers(qsd *reflectionv2alpha1.QueryServicesDescriptor, conn grpc.ClientConnInterface) Queriers {
 	// TODO(fdymylja): impl
 	return Queriers{}
+}
+
+func (o *options) addresses(configuration *reflectionv2alpha1.ConfigurationDescriptor) *Addresses {
+	return NewAddresses(configuration.Bech32AccountAddressPrefix)
 }
 
 // DialOption defines a Client Dial option

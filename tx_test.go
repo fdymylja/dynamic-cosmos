@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
+	"github.com/fdymylja/dynamic-cosmos/internal/removeme/bech32"
 
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -15,7 +17,6 @@ import (
 	basev1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/v1beta1"
 	secp256k12 "github.com/cosmos/cosmos-sdk/api/cosmos/crypto/secp256k1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
-	"github.com/fdymylja/dynamic-cosmos/removeme/bech32"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto"
 	"golang.org/x/crypto/ripemd160"

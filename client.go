@@ -3,6 +3,7 @@ package dynamic
 import (
 	"context"
 	"fmt"
+
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/tx"
 
@@ -40,8 +41,10 @@ type Queriers struct {
 }
 
 type Client struct {
-	App      *reflectionv2alpha1.AppDescriptor
-	Codec    *codec.Codec
+	App       *reflectionv2alpha1.AppDescriptor
+	Codec     *codec.Codec
+	Addresses *Addresses
+
 	Queriers Queriers
 
 	dynQueriers map[protoreflect.FullName]protoreflect.ServiceDescriptor
