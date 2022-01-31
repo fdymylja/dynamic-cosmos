@@ -1,7 +1,9 @@
 package dynamic
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"golang.org/x/crypto/ripemd160"
 
 	"github.com/fdymylja/dynamic-cosmos/internal/removeme/bech32"
 )
@@ -11,6 +13,9 @@ type AddressHuman = string
 
 // AddressRaw is a []byte type alias for a raw bytes address representation.
 type AddressRaw = []byte
+
+// PubKeyRaw is a []byte type alias for a raw public key address representation
+type PubKeyRaw = []byte
 
 // NewAddresses instantiates a new *Addresses instance.
 func NewAddresses(bech32Prefix string) *Addresses {
@@ -25,6 +30,14 @@ type Addresses struct {
 // Derive derives an AddressRaw to its chain specific human-readable form.
 func (a *Addresses) Derive(address AddressRaw) (AddressHuman, error) {
 	return bech32.ConvertAndEncode(a.bech32Prefix, address)
+}
+
+func (a *Addresses) DeriveFromPubKey(pubKey PubKeyRaw) (AddressHuman, error) {
+	sha := sha256.Sum256(pubKey)
+	hasherRIPEMD160 := ripemd160.New()
+	hasherRIPEMD160.Write(sha[:]) // does not error
+	addrBytes := hasherRIPEMD160.Sum(nil)
+	return a.Derive(addrBytes)
 }
 
 // Decode decodes an AddressHuman representation into its AddressRaw format.

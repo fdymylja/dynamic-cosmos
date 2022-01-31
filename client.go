@@ -3,6 +3,7 @@ package dynamic
 import (
 	"context"
 	"fmt"
+	"io"
 
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/tx"
@@ -103,4 +104,32 @@ func (c *Client) NewTx() *Tx {
 
 func (c *Client) ClientConn() grpc.ClientConnInterface {
 	return c.grpc
+}
+
+func (c *Client) Close() error {
+	var reasons []error
+
+	err := c.tm.Stop()
+	if err != nil {
+		reasons = append(reasons, err)
+	}
+
+	c.watcher.Stop()
+	if closer, ok := c.grpc.(io.Closer); ok {
+		err = closer.Close()
+		if err != nil {
+			reasons = append(reasons, err)
+		}
+	}
+
+	err = c.Codec.Registry.Remote().Close() // TODO better
+	if err != nil {
+		reasons = append(reasons, err)
+	}
+
+	if len(reasons) == 0 {
+		return nil
+	}
+
+	return reasons[0] // TODO better
 }
