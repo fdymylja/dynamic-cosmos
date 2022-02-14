@@ -15,19 +15,19 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-var _ ProtoFileRegistry = (*GRPCReflectionRemote)(nil)
-var _ ProtoFileRegistry = (*CacheRemote)(nil)
-var _ ProtoFileRegistry = (*MultiRemote)(nil)
+var _ ProtoFileRegistry = (*GRPCReflectionProtoFileRegistry)(nil)
+var _ ProtoFileRegistry = (*CacheProtoFileRegistry)(nil)
+var _ ProtoFileRegistry = (*MultiProtoFileRegistry)(nil)
 
-func NewMultiRemote(remotes ...ProtoFileRegistry) *MultiRemote {
-	return &MultiRemote{remotes: remotes}
+func NewMultiProtoFileRegistry(remotes ...ProtoFileRegistry) *MultiProtoFileRegistry {
+	return &MultiProtoFileRegistry{remotes: remotes}
 }
 
-type MultiRemote struct {
+type MultiProtoFileRegistry struct {
 	remotes []ProtoFileRegistry
 }
 
-func (m MultiRemote) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error) {
+func (m MultiProtoFileRegistry) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error) {
 	for _, rem := range m.remotes {
 		fdpb, err := rem.ProtoFileByPath(path)
 		if err == nil {
@@ -40,7 +40,7 @@ func (m MultiRemote) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorP
 	return nil, protoregistry.NotFound
 }
 
-func (m MultiRemote) ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error) {
+func (m MultiProtoFileRegistry) ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error) {
 	for _, rem := range m.remotes {
 		fdpb, err := rem.ProtoFileContainingSymbol(name)
 		if err == nil {
@@ -53,7 +53,7 @@ func (m MultiRemote) ProtoFileContainingSymbol(name protoreflect.FullName) (*des
 	return nil, protoregistry.NotFound
 }
 
-func (m MultiRemote) Close() error {
+func (m MultiProtoFileRegistry) Close() error {
 	for _, rem := range m.remotes {
 		_ = rem.Close()
 	}
@@ -61,15 +61,15 @@ func (m MultiRemote) Close() error {
 	return nil
 }
 
-func NewCacheRemote(set *descriptorpb.FileDescriptorSet) *CacheRemote {
-	return &CacheRemote{set: set}
+func NewCacheProtoFileRegistry(set *descriptorpb.FileDescriptorSet) *CacheProtoFileRegistry {
+	return &CacheProtoFileRegistry{set: set}
 }
 
-type CacheRemote struct {
+type CacheProtoFileRegistry struct {
 	set *descriptorpb.FileDescriptorSet
 }
 
-func (c CacheRemote) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error) {
+func (c CacheProtoFileRegistry) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error) {
 	for _, fdpb := range c.set.File {
 		if fdpb.Name != nil && *fdpb.Name == path {
 			return fdpb, nil
@@ -79,7 +79,7 @@ func (c CacheRemote) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorP
 	return nil, protoregistry.NotFound
 }
 
-func (c CacheRemote) ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error) {
+func (c CacheProtoFileRegistry) ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error) {
 	for _, fdpb := range c.set.File {
 		fdFullName := protoreflect.FullName(fdpb.GetPackage())
 		if fdFullName == name {
@@ -127,7 +127,7 @@ func (c CacheRemote) ProtoFileContainingSymbol(name protoreflect.FullName) (*des
 	return nil, protoregistry.NotFound
 }
 
-func (c CacheRemote) Close() error {
+func (c CacheProtoFileRegistry) Close() error {
 	return nil
 }
 
@@ -193,28 +193,28 @@ func findNameInDescriptorProto(name, parent protoreflect.FullName, desc *descrip
 	return false
 }
 
-func NewGRPCReflectionRemote(grpcEndpoint string) (*GRPCReflectionRemote, error) {
+func NewGRPCReflectionProtoFileRegistry(grpcEndpoint string) (*GRPCReflectionProtoFileRegistry, error) {
 	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
 
-	return &GRPCReflectionRemote{
+	return &GRPCReflectionProtoFileRegistry{
 		rpb:    grpc_reflection_v1alpha.NewServerReflectionClient(conn),
 		once:   new(sync.Once),
 		stream: nil,
 	}, nil
 }
 
-// GRPCReflectionRemote is a ProtoFileRegistry
+// GRPCReflectionProtoFileRegistry is a ProtoFileRegistry
 // which uses grpc reflection to resolve files.
-type GRPCReflectionRemote struct {
+type GRPCReflectionProtoFileRegistry struct {
 	rpb    grpc_reflection_v1alpha.ServerReflectionClient
 	once   *sync.Once
 	stream grpc_reflection_v1alpha.ServerReflection_ServerReflectionInfoClient
 }
 
-func (g *GRPCReflectionRemote) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error) {
+func (g *GRPCReflectionProtoFileRegistry) ProtoFileByPath(path string) (*descriptorpb.FileDescriptorProto, error) {
 	err := g.init()
 	if err != nil {
 		return nil, err
@@ -244,7 +244,7 @@ func (g *GRPCReflectionRemote) ProtoFileByPath(path string) (*descriptorpb.FileD
 	return fdPb, nil
 }
 
-func (g *GRPCReflectionRemote) ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error) {
+func (g *GRPCReflectionProtoFileRegistry) ProtoFileContainingSymbol(name protoreflect.FullName) (*descriptorpb.FileDescriptorProto, error) {
 	err := g.init()
 	if err != nil {
 		return nil, err
@@ -276,13 +276,13 @@ func (g *GRPCReflectionRemote) ProtoFileContainingSymbol(name protoreflect.FullN
 	return fdPb, nil
 }
 
-func (g *GRPCReflectionRemote) init() (err error) {
+func (g *GRPCReflectionProtoFileRegistry) init() (err error) {
 	g.once.Do(func() {
 		g.stream, err = g.rpb.ServerReflectionInfo(context.Background())
 	})
 	return err
 }
 
-func (g *GRPCReflectionRemote) Close() error {
+func (g *GRPCReflectionProtoFileRegistry) Close() error {
 	return g.stream.CloseSend()
 }

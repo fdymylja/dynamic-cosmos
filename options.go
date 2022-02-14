@@ -51,7 +51,7 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 	// we check if remote is set, if it's not set we default
 	// to the grpc registry remote
 	if o.remote == nil {
-		remote, err := codec.NewGRPCReflectionRemote(o.grpcEndpoint)
+		remote, err := codec.NewGRPCReflectionProtoFileRegistry(o.grpcEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("unable to set up grpc remote protofile registry: %w", err)
 		}

@@ -16,7 +16,7 @@ import (
 func main() {
 	const grpcEndpoint = ""
 
-	remote, err := codec.NewGRPCReflectionRemote(grpcEndpoint)
+	remote, err := codec.NewGRPCReflectionProtoFileRegistry(grpcEndpoint)
 	if err != nil {
 		panic(err)
 	}

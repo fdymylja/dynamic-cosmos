@@ -31,8 +31,8 @@ func TestNewClient(t *testing.T) {
 	fds, err := c.Codec.Registry.Save()
 	require.NoError(t, err)
 
-	cacheRemo := codec.NewCacheRemote(fds)
-	multi := codec.NewMultiRemote(cacheRemo, c.Codec.Registry.Remote())
+	cacheRemo := codec.NewCacheProtoFileRegistry(fds)
+	multi := codec.NewMultiProtoFileRegistry(cacheRemo, c.Codec.Registry.Remote())
 
 	c, err = Dial(context.Background(), "34.94.191.28:9090", "", WithRemoteRegistry(multi))
 	require.NoError(t, err)

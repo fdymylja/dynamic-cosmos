@@ -12,7 +12,7 @@ import (
 
 func Test_authSignerInfoProvider_SignerInfo(t *testing.T) {
 	ctx := context.Background()
-	grpcRemote, err := codec.NewGRPCReflectionRemote("34.94.191.28:9090")
+	grpcRemote, err := codec.NewGRPCReflectionProtoFileRegistry("34.94.191.28:9090")
 	require.NoError(t, err)
 	cdc := codec.NewCodec(grpcRemote)
 	conn, err := grpc.DialContext(ctx, "34.94.191.28:9090", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.ForceCodec(cdc.GRPCCodec())))

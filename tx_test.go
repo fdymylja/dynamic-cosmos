@@ -8,15 +8,14 @@ import (
 	"os"
 	"testing"
 
-	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
-	"github.com/fdymylja/dynamic-cosmos/internal/removeme/bech32"
-
 	"github.com/coinbase/rosetta-sdk-go/keys"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	bankv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/bank/v1beta1"
 	basev1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/base/v1beta1"
 	secp256k12 "github.com/cosmos/cosmos-sdk/api/cosmos/crypto/secp256k1"
+	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
+	"github.com/fdymylja/dynamic-cosmos/internal/removeme/bech32"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto"
 	"golang.org/x/crypto/ripemd160"
@@ -36,7 +35,7 @@ func getCacheRemote(t *testing.T) codec.ProtoFileRegistry {
 	fdSet := new(descriptorpb.FileDescriptorSet)
 	require.NoError(t, protojson.Unmarshal(fdSetBytes, fdSet))
 
-	return codec.NewCacheRemote(fdSet)
+	return codec.NewCacheProtoFileRegistry(fdSet)
 }
 
 var _ Signer = (*mapSigner)(nil)
