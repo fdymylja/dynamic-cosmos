@@ -77,8 +77,6 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 		}
 	}
 
-	// setup default queriers
-	queriers := o.setQueriers(o.appDesc.QueryServices, conn)
 	// setup addresses
 	addresses := o.addresses(o.appDesc.Configuration)
 
@@ -107,7 +105,6 @@ func (o *options) setup(ctx context.Context) (*Client, error) {
 		App:         o.appDesc,
 		Codec:       cdc,
 		Addresses:   addresses,
-		Queriers:    queriers,
 		dynQueriers: nil,
 		dynMessage:  nil,
 		tm:          tm,
@@ -155,11 +152,6 @@ func (o *options) setAppDesc(ctx context.Context, conn grpc.ClientConnInterface)
 	}
 
 	return nil
-}
-
-func (o *options) setQueriers(qsd *reflectionv2alpha1.QueryServicesDescriptor, conn grpc.ClientConnInterface) Queriers {
-	// TODO(fdymylja): impl
-	return Queriers{}
 }
 
 func (o *options) addresses(configuration *reflectionv2alpha1.ConfigurationDescriptor) *Addresses {

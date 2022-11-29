@@ -8,17 +8,7 @@ import (
 	txv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/tx/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/tx"
 
-	authv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/auth/v1beta1"
-	bankv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/bank/v1beta1"
 	"github.com/cosmos/cosmos-sdk/api/cosmos/base/reflection/v2alpha1"
-	distributionv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/distribution/v1beta1"
-	evidencev1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/evidence/v1beta1"
-	feegrantv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/feegrant/v1beta1"
-	govv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/gov/v1beta1"
-	mintv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/mint/v1beta1"
-	paramsv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/params/v1beta1"
-	slashingv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/slashing/v1beta1"
-	stakingv1beta1 "github.com/cosmos/cosmos-sdk/api/cosmos/staking/v1beta1"
 	"github.com/fdymylja/dynamic-cosmos/codec"
 	"github.com/fdymylja/dynamic-cosmos/protoutil"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -28,25 +18,10 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-type Queriers struct {
-	Auth         authv1beta1.QueryClient
-	Bank         bankv1beta1.QueryClient
-	Distribution distributionv1beta1.QueryClient
-	Evidence     evidencev1beta1.QueryClient
-	FeeGrant     feegrantv1beta1.QueryClient
-	Gov          govv1beta1.QueryClient
-	Mint         mintv1beta1.QueryClient
-	Params       paramsv1beta1.QueryClient
-	Slashing     slashingv1beta1.QueryClient
-	Staking      stakingv1beta1.QueryClient
-}
-
 type Client struct {
 	App       *reflectionv2alpha1.AppDescriptor
 	Codec     *codec.Codec
 	Addresses *Addresses
-
-	Queriers Queriers
 
 	dynQueriers map[protoreflect.FullName]protoreflect.ServiceDescriptor
 	dynMessage  map[protoreflect.FullName]protoreflect.MessageType
